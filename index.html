@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>要点語・随伴語 二列図示ツール v11 (Keyword / Satellite Word)</title>
+<title>要点語・随伴語 二列図示ツール v12 (Keyword / Satellite Word)</title>
 <script src="https://unpkg.com/compromise"></script>
 <style>
   :root{
@@ -204,7 +204,14 @@ const SATELLITE_OVERRIDE = new Set([
   // 全体を随伴語側とする。v9で追加: someone/somebody/something系(要点語部品one/body/thingを含むため
   // KEYWORD_OVERRIDE側)と対になる規則が未実装で、"somewhat"等がcompromiseのAdverbタグにより
   // 既定の要点語側へ誤って分類されていた(拡張機能版v1.4.1と同一の不具合)。
-  "somewhat","somehow","somewhere","anywhere","everywhere","nowhere"
+  "somewhat","somehow","somewhere","anywhere","everywhere","nowhere",
+  // v12で追加: who/whom/whose/which/what は関係詞・疑問詞としての用法が
+  // compromise上でQuestionWord/Preposition/Determinerのいずれにも揺れて
+  // 出現し(同一語・同一品詞機能でも文脈によりタグが一致しない)、特にQuestionWord
+  // タグはSATELLITE_TAGSに含まれないため要点語側へ誤って抜け落ちる余地があった
+  // (今回の"which"の誤配置はこれが原因)。go/likeと同じ理由でタグ任せをやめ、
+  // 拡張機能版のSATELLITE_WORDSと揃える形で一律随伴語側に固定する。
+  "who","whom","whose","which","what"
 ]);
 
 // 要点語として強制分類する語(数量形容詞・比較級など、compromiseがDeterminer扱いしがちな語)
