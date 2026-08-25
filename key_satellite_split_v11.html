@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>要点語・随伴語 二列図示ツール v11 (Keyword / Satellite Word)</title>
+<script src="https://unpkg.com/compromise"></script>
+<style>
+  :root{
+    --paper:#F7F4EC;
+    --ink:#2B2A28;
+    --ink-soft:#5A574D;
+    --accent:#2C5F6F;
+    --accent-soft:#6E96A2;
+    --line:#D9D3C4;
+    --line-strong:#B8AF98;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"Hiragino Mincho ProN","Yu Mincho",serif;
+    padding:32px 16px 80px;
+  }
+  h1{
+    font-size:22px;
+    font-weight:500;
+    letter-spacing:0.04em;
+    margin:0 0 4px;
+    border-bottom:1px solid var(--line-strong);
+    padding-bottom:14px;
+  }
+  .sub{ display:none; }
+  textarea{
+    width:100%;
+    min-height:120px;
+    font-family:"Georgia",serif;
+    font-size:15px;
+    line-height:1.6;
+    padding:14px;
+    background:#FFFEFA;
+    border:1px solid var(--line-strong);
+    border-radius:2px;
+    color:var(--ink);
+    resize:vertical;
+  }
+  textarea:focus{
+    outline:none;
+    border-color:var(--accent);
+  }
+  .controls{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    margin-top:14px;
+    flex-wrap:wrap;
+  }
+  button{
+    font-family:inherit;
+    font-size:14px;
+    letter-spacing:0.05em;
+    padding:9px 26px;
+    background:var(--ink);
+    color:var(--paper);
+    border:none;
+    border-radius:2px;
+    cursor:pointer;
+  }
+  button:hover{ background:var(--accent); }
+  label.opt{
+    font-size:12px;
+    color:var(--ink-soft);
+    display:flex;
+    align-items:center;
+    gap:6px;
+    cursor:pointer;
+  }
+  .font-controls{
+    display:flex;
+    align-items:center;
+    gap:4px;
+    margin-left:auto;
+  }
+  .font-btn{
+    font-family:inherit;
+    font-size:12px;
+    letter-spacing:0;
+    padding:6px 12px;
+    background:#FFFEFA;
+    color:var(--ink);
+    border:1px solid var(--line-strong);
+    border-radius:2px;
+  }
+  .font-btn:hover{ background:var(--paper); }
+  .paragraphs{
+    margin-top:36px;
+    display:flex;
+    flex-direction:column;
+    gap:32px;
+  }
+  .para-label{
+    font-size:11px;
+    color:var(--ink-soft);
+    letter-spacing:0.08em;
+    margin-bottom:6px;
+  }
+  table{
+    width:100%;
+    table-layout:fixed;
+    border-collapse:collapse;
+    font-family:"Georgia",serif;
+    font-size:15px;
+  }
+  td{
+    width:50%;
+    border:1px solid var(--line);
+    padding:5px 14px;
+    height:1.6em;
+    overflow-wrap:break-word;
+  }
+  td.keyword{ text-align:right; }
+  td.satellite{
+    text-align:left;
+    color:var(--accent);
+  }
+  .empty-note{
+    font-size:13px;
+    color:var(--ink-soft);
+    padding:20px 0;
+  }
+  .frame{
+    position:relative;
+    max-width:760px;
+    width:100%;
+    margin:0 auto;
+    padding-right:14px;
+  }
+  .frame-edge{
+    position:absolute;
+    top:0;
+    right:0;
+    width:14px;
+    bottom:0;
+    cursor:ew-resize;
+  }
+  .frame-edge::after{
+    content:"";
+    position:absolute;
+    top:0;
+    right:5px;
+    width:4px;
+    height:100%;
+    background:var(--line-strong);
+    border-radius:2px;
+  }
+  .frame-edge:hover::after{ background:var(--accent); }
+</style>
+</head>
+<body>
+<div class="frame" id="frame">
+  <h1>要点語・随伴語 二列図示ツール <span style="font-weight:400;font-size:14px;color:var(--ink-soft);">(Keyword / Satellite Word)</span></h1>
+
+  <textarea id="input" placeholder="ここに英文を貼り付けてください(複数段落可)">The year 1866 was signalised by a remarkable incident, a mysterious and puzzling phenomenon, which doubtless no one has yet forgotten.</textarea>
+
+  <div class="controls">
+    <button id="run">図示する</button>
+    <label class="opt"><input type="checkbox" id="resetOnSentence" checked> 文末(.?!)で行をリセットする</label>
+    <div class="font-controls">
+      <button class="font-btn" id="fontMinus" title="文字を小さく">A-</button>
+      <button class="font-btn" id="fontPlus" title="文字を大きく">A+</button>
+    </div>
+  </div>
+
+  <div id="output" class="paragraphs"></div>
+  <div class="frame-edge" id="frameEdge" title="ドラッグで幅を変更"></div>
+</div>
+
+<script>
+// 随伴語として強制分類する語(compromiseのタグに関わらず優先)
+// v8: 接続副詞(therefore, however等)を明示的に追加。
+//     従来はcompromiseのConjunctionタグに依存しており、
+//     ライブラリのタグ付けが変わった場合に分類が崩れる余地があったため、
+//     再現性を優先しリストへ直接登録する形に変更した。
+const SATELLITE_OVERRIDE = new Set([
+  "there","here","now","then","why","where","when","how","since","while","although",
+  "though","whereas","notwithstanding","including","despite","per","via",
+  "upon","onto","off","out","up","down","away","back","forward",
+  "all","no","any","some","each","every","both","none","either","neither",
+  // 接続副詞(独立した語彙的意味を持つが、and/butと同じ統語的機能を担う閉じたクラスとして一貫して随伴語側に分類する)
+  "therefore","however","moreover","nevertheless","consequently",
+  "furthermore","thus","hence","otherwise",
+  // do/have の本動詞・助動詞論争に立ち入らず、用法を問わず一貫して随伴語側に分類する
+  "do","does","did","have","has","had",
+  // v10で追加: go/like/further/still/forward は用法によって働きが割れる語
+  // (本動詞/前置詞、副詞/接続副詞、副詞/形容詞など)だが、be/have/doと同じ理由で
+  // 文脈判定はせず一律で随伴語側に固定する。あわせてKEYWORD_OVERRIDEから
+  // further/stillを削除(旧: 要点語固定と非対称だった)。goはcompromiseのタグに
+  // 頼らずここで明示固定(likeのPreposition誤タグ問題と同様、タグ任せは不安定なため)。
+  "go","goes","going","went","gone",
+  "like","likes","liked","liking",
+  "further","still",
+  // 複合語のうち、分解した構成要素がどちらも随伴語(例: some+what, some+how, any+where)である場合は
+  // 全体を随伴語側とする。v9で追加: someone/somebody/something系(要点語部品one/body/thingを含むため
+  // KEYWORD_OVERRIDE側)と対になる規則が未実装で、"somewhat"等がcompromiseのAdverbタグにより
+  // 既定の要点語側へ誤って分類されていた(拡張機能版v1.4.1と同一の不具合)。
+  "somewhat","somehow","somewhere","anywhere","everywhere","nowhere"
+]);
+
+// 要点語として強制分類する語(数量形容詞・比較級など、compromiseがDeterminer扱いしがちな語)
+const KEYWORD_OVERRIDE = new Set([
+  "more","most","many","much","few","fewer","several","less","least","enough",
+  "first","second","third","also","just","only","really",
+  "very","quite","rather","so","particularly",
+  // someone/anyone/everyone/no one 等の複合不定代名詞は、既知の指示対象を指すだけの
+  // 純代名詞(he, it, theyなど)とは異なり、新規の指示対象を導入する名詞句そのものであるため
+  // 要点語側とする。"no one"は正書法上2語なので分割され、no(随伴語)/one(要点語・数詞のデフォルト)
+  // として自動的に処理されるため、ここには含めない。
+  "someone","anyone","everyone","somebody","anybody","everybody",
+  "something","anything","everything","nothing"
+]);
+
+// 随伴語とみなす compromise の品詞タグ
+const SATELLITE_TAGS = new Set([
+  "Determiner","Preposition","Conjunction","Pronoun","Copula","Modal",
+  "Auxiliary","Negative"
+]);
+
+function classify(term){
+  const w = term.text.toLowerCase();
+  if (SATELLITE_OVERRIDE.has(w)) return "satellite";
+  if (KEYWORD_OVERRIDE.has(w)) return "keyword";
+  const tags = term.tags || [];
+  for (const t of tags){
+    if (SATELLITE_TAGS.has(t)) return "satellite";
+  }
+  return "keyword";
+}
+
+function buildRows(terms, resetOnSentence){
+  const rows = [];
+  let current = null;
+
+  terms.forEach((term, idx) => {
+    const display = ((term.pre||"").trim()) + term.text + ((term.post||"").trim());
+    if (display.trim() === "") return; // 短縮形展開などで生じる空トークンは無視する
+    const type = classify(term);
+
+    if (type === "keyword"){
+      current = { left: display, right: "" };
+      rows.push(current);
+    } else {
+      if (current && current.right === ""){
+        current.right = display;
+      } else {
+        current = { left: "", right: display };
+        rows.push(current);
+      }
+    }
+
+    if (resetOnSentence && /[.?!]["')]*$/.test(display)){
+      current = null;
+    }
+  });
+
+  return rows;
+}
+
+function renderParagraph(text, resetOnSentence){
+  const doc = nlp(text);
+  const json = doc.json();
+  let terms = [];
+  json.forEach(sentence => { terms = terms.concat(sentence.terms); });
+
+  if (terms.length === 0) return null;
+
+  const rows = buildRows(terms, resetOnSentence);
+
+  let html = "<table><tbody>";
+  rows.forEach(r => {
+    html += "<tr>";
+    html += `<td class="keyword">${r.left ? escapeHtml(r.left) : ""}</td>`;
+    html += `<td class="satellite">${r.right ? escapeHtml(r.right) : ""}</td>`;
+    html += "</tr>";
+  });
+  html += "</tbody></table>";
+  return html;
+}
+
+function escapeHtml(s){
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+const FONT_SIZES = [11, 13, 15, 18, 21, 25, 30, 36, 44];
+let fontSizeIndex = 2; // 15px を初期値とする
+
+function applyFontSize(){
+  document.querySelectorAll("#output table").forEach(t => {
+    t.style.fontSize = FONT_SIZES[fontSizeIndex] + "px";
+  });
+}
+
+document.getElementById("fontMinus").addEventListener("click", () => {
+  fontSizeIndex = Math.max(0, fontSizeIndex - 1);
+  applyFontSize();
+});
+document.getElementById("fontPlus").addEventListener("click", () => {
+  fontSizeIndex = Math.min(FONT_SIZES.length - 1, fontSizeIndex + 1);
+  applyFontSize();
+});
+
+// 外枠(.frame)の右端ドラッグで幅を変更する。エクステンション版のパネル端リサイズと同じ操作感。
+(function setupFrameResize(){
+  const frame = document.getElementById("frame");
+  const edge = document.getElementById("frameEdge");
+  const minW = 380;
+
+  edge.addEventListener("mousedown", (e) => {
+    const startX = e.clientX;
+    const startW = frame.getBoundingClientRect().width;
+
+    function onMove(ev){
+      const dx = ev.clientX - startX;
+      const maxW = window.innerWidth - 32;
+      const newW = Math.max(minW, Math.min(startW + dx, maxW));
+      frame.style.maxWidth = newW + "px";
+    }
+    function onUp(){
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    }
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+    e.preventDefault();
+  });
+})();
+
+function run(){
+  if (typeof nlp === "undefined"){
+    document.getElementById("output").innerHTML =
+      '<div class="empty-note">言語処理ライブラリ(compromise.js)の読み込みに失敗しました。インターネット接続を確認し、ページを再読み込みしてください。</div>';
+    return;
+  }
+  const raw = document.getElementById("input").value;
+  const resetOnSentence = document.getElementById("resetOnSentence").checked;
+  const paragraphs = raw.split(/\n+/).map(p => p.trim()).filter(p => p.length > 0);
+  const output = document.getElementById("output");
+  output.innerHTML = "";
+
+  if (paragraphs.length === 0){
+    output.innerHTML = '<div class="empty-note">英文を入力してください。</div>';
+    return;
+  }
+
+  try {
+    paragraphs.forEach((para, i) => {
+      const tableHtml = renderParagraph(para, resetOnSentence);
+      if (!tableHtml) return;
+      const wrapper = document.createElement("div");
+      wrapper.innerHTML = `<div class="para-label">段落 ${i+1}</div>${tableHtml}`;
+      output.appendChild(wrapper);
+    });
+    applyFontSize();
+  } catch (e) {
+    output.innerHTML = '<div class="empty-note">エラーが発生しました: ' + escapeHtml(String(e.message || e)) + '</div>';
+  }
+}
+
+document.getElementById("run").addEventListener("click", run);
+window.addEventListener("load", run);
+</script>
+</body>
+</html>
