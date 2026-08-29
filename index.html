@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>要点語・随伴語 二列図示ツール v12 (Keyword / Satellite Word)</title>
+<title>Skim View — Keyword / Skimmed Word Split Viewer v14 (要点語・所流語 二列表示)</title>
 <script src="https://unpkg.com/compromise"></script>
 <style>
   :root{
@@ -159,21 +159,21 @@
 </head>
 <body>
 <div class="frame" id="frame">
-  <h1>要点語・随伴語 二列図示ツール <span style="font-weight:400;font-size:14px;color:var(--ink-soft);">(Keyword / Satellite Word)</span></h1>
+  <h1>Skim View <span style="font-weight:400;font-size:14px;color:var(--ink-soft);">— Keyword / Skimmed Word Split Viewer ／ 要点語・所流語 二列表示</span></h1>
 
-  <textarea id="input" placeholder="ここに英文を貼り付けてください(複数段落可)">The year 1866 was signalised by a remarkable incident, a mysterious and puzzling phenomenon, which doubtless no one has yet forgotten.</textarea>
+  <textarea id="input" placeholder="Paste English text here (multiple paragraphs allowed) ／ ここに英文を貼り付けてください(複数段落可)">The year 1866 was signalised by a remarkable incident, a mysterious and puzzling phenomenon, which doubtless no one has yet forgotten.</textarea>
 
   <div class="controls">
-    <button id="run">図示する</button>
-    <label class="opt"><input type="checkbox" id="resetOnSentence" checked> 文末(.?!)で行をリセットする</label>
+    <button id="run">Split ／ 図示</button>
+    <label class="opt"><input type="checkbox" id="resetOnSentence" checked> Reset line at sentence end (.?!) ／ 文末(.?!)で行をリセット</label>
     <div class="font-controls">
-      <button class="font-btn" id="fontMinus" title="文字を小さく">A-</button>
-      <button class="font-btn" id="fontPlus" title="文字を大きく">A+</button>
+      <button class="font-btn" id="fontMinus" title="Decrease font size ／ 文字を小さく">A-</button>
+      <button class="font-btn" id="fontPlus" title="Increase font size ／ 文字を大きく">A+</button>
     </div>
   </div>
 
   <div id="output" class="paragraphs"></div>
-  <div class="frame-edge" id="frameEdge" title="ドラッグで幅を変更"></div>
+  <div class="frame-edge" id="frameEdge" title="Drag to resize width ／ ドラッグで幅を変更"></div>
 </div>
 
 <script>
@@ -211,7 +211,12 @@ const SATELLITE_OVERRIDE = new Set([
   // タグはSATELLITE_TAGSに含まれないため要点語側へ誤って抜け落ちる余地があった
   // (今回の"which"の誤配置はこれが原因)。go/likeと同じ理由でタグ任せをやめ、
   // 拡張機能版のSATELLITE_WORDSと揃える形で一律随伴語側に固定する。
-  "who","whom","whose","which","what"
+  "who","whom","whose","which","what",
+  // v13で追加: "at least"のような決まり文句の中でのみ、compromiseが"at"に
+  // 通常のPrepositionではなくAdverbタグを付けることがあり、SATELLITE_TAGSに
+  // 含まれないため要点語側へ誤って抜け落ちる余地があった。who/which等と同じ理由で
+  // タグ任せをやめ、拡張機能版のSATELLITE_WORDSと揃える形で一律随伴語側に固定する。
+  "at"
 ]);
 
 // 要点語として強制分類する語(数量形容詞・比較級など、compromiseがDeterminer扱いしがちな語)
@@ -345,7 +350,7 @@ document.getElementById("fontPlus").addEventListener("click", () => {
 function run(){
   if (typeof nlp === "undefined"){
     document.getElementById("output").innerHTML =
-      '<div class="empty-note">言語処理ライブラリ(compromise.js)の読み込みに失敗しました。インターネット接続を確認し、ページを再読み込みしてください。</div>';
+      '<div class="empty-note">Failed to load the language-processing library (compromise.js). Please check your internet connection and reload the page. ／ 言語処理ライブラリ(compromise.js)の読み込みに失敗しました。インターネット接続を確認し、ページを再読み込みしてください。</div>';
     return;
   }
   const raw = document.getElementById("input").value;
@@ -355,7 +360,7 @@ function run(){
   output.innerHTML = "";
 
   if (paragraphs.length === 0){
-    output.innerHTML = '<div class="empty-note">英文を入力してください。</div>';
+    output.innerHTML = '<div class="empty-note">Please enter some English text. ／ 英文を入力してください。</div>';
     return;
   }
 
@@ -364,12 +369,12 @@ function run(){
       const tableHtml = renderParagraph(para, resetOnSentence);
       if (!tableHtml) return;
       const wrapper = document.createElement("div");
-      wrapper.innerHTML = `<div class="para-label">段落 ${i+1}</div>${tableHtml}`;
+      wrapper.innerHTML = `<div class="para-label">Paragraph ${i+1} ／ 段落${i+1}</div>${tableHtml}`;
       output.appendChild(wrapper);
     });
     applyFontSize();
   } catch (e) {
-    output.innerHTML = '<div class="empty-note">エラーが発生しました: ' + escapeHtml(String(e.message || e)) + '</div>';
+    output.innerHTML = '<div class="empty-note">An error occurred ／ エラーが発生しました: ' + escapeHtml(String(e.message || e)) + '</div>';
   }
 }
 
